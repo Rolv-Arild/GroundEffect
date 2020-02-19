@@ -35,19 +35,6 @@ class PolynomialRegression:
         return "+".join(reversed(parts))
 
 
-class Drone:
-    def f0(self, voltages):
-        avg_voltage = sum(voltages) / len(voltages)
-        return 0.01 * avg_voltage ** 3 + 0.1 * avg_voltage ** 2 + avg_voltage
-
-    def f_ground_effect(self, dist, voltages):
-        # avg_voltage = sum(voltages) / len(voltages)
-        return self.f0(voltages)
-
-    def f_unknown(self, dist, voltages):
-        pass
-
-
 if __name__ == '__main__':
     def f(x):
         return 0.01 * x ** 3 + 0.1 * x ** 2 + x
