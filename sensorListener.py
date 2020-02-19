@@ -3,10 +3,10 @@ import serial
 
 def sendMsg(s):
     ser.write(s)
-    print(ser.readline())
+    return ser.readline().decode("utf-8")
 
 
 ser = serial.Serial("COM3", 9600)
 while True:
-    #sendMsg(b"on")
-    sendMsg(b"off")
+    dist = int(sendMsg(b"ayyyy"))  # distance in mm.
+    print(dist)
