@@ -8,5 +8,9 @@ def sendMsg(s):
 
 ser = serial.Serial("COM3", 9600)
 while True:
-    dist = int(sendMsg(b"ayyyy"))  # distance in mm.
-    print(dist)
+    returnMsg = sendMsg(b"100")  # distance in mm.
+    data = returnMsg.strip().split(" ")
+    dist = data[0]
+    loads = data[1:]
+    print("dist: " + dist + "\tloads: ", end="")
+    print(loads)
