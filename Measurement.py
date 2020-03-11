@@ -1,6 +1,9 @@
 import time
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
+from Regression import FgRegression, exponential_model, cheeseman_model
 
 
 class MeasurementWriter:
@@ -20,11 +23,7 @@ class MeasurementWriter:
         self.file.write(",".join(values) + "\n")
 
 
-def read_measurements(fname):
-    return pd.read_csv(fname)
-
-
-def get_forces(w1, w2, w3, w4, a=0.14, b=0.08):
+def get_forces(w1, w2, w3, w4, a=0.2, b=0.2):
     f1 = (-w3 * a + w1 * (a + 2 * b)) / (2 * b)
     f2 = (-w4 * a + w2 * (a + 2 * b)) / (2 * b)
     f3 = (-w1 * a + w3 * (a + 2 * b)) / (2 * b)
@@ -35,6 +34,27 @@ def get_forces(w1, w2, w3, w4, a=0.14, b=0.08):
 
 if __name__ == '__main__':
     m_file = MeasurementWriter("write_test.csv")
-    m_file.write(1, [2, 3, 4, 5], [6, 7, 8, 9])
-    m_file.write(10, [11, 12, 13, 14], [15, 16, 17, 18])
-    print(get_forces(2000, 1000, 1000, 1000))
+
+
+    def f0(v):
+        return 10 * v
+
+
+    def sim_f(voltages, distance):
+        avg_volt = np.mean(voltages)
+        # mult = cheeseman_model(distance, 15)
+        mult = exponential_model(distance, 10, 3)
+        base_weight = f0(avg_volt) * mult
+        weights = [base_weight * (v / avg_volt + np.random.normal(scale=0.1)) for v in voltages]
+        return weights
+
+
+    volts = 10 * np.random.random((1000, 4))
+    dists = 45 * np.random.random((1000,)) + 5
+
+    for volt, dist in zip(volts, dists):
+        m_file.write(dist, list(volt), sim_f(volt, dist))
+
+    df = pd.read_csv("write_test.csv")
+    corr = df.corr()
+    print("Hei")
