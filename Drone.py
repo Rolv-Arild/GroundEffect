@@ -28,43 +28,24 @@ def model2(x, a, b):
     return a * np.exp(-x / b) + 1
 
 
-class F_geRegression:
-    def __init__(self, model):
-        if model == "model1":
-            self.param = [1]
-            self.covar = np.zeros(1)
-        elif model == "model2":
-            self.param = [1, 1]
-            self.covar = np.zeros((2, 2))
-        else:
-            print("No model chosen")
-
+class FgRegression:
+    def __init__(self, model, init_param=None):
         self.model = model
+        self.param = init_param
+        self.covar = None
 
     def predict(self, distances):
-        if self.model == "model1":
-            return model1(distances, self.param[0])
-        elif self.model == "model2":
-            return model2(distances, self.param[0], self.param[1])
-        else:
-            print("Missing model")
-            return []
+        return self.model(distances, *self.param)
 
     def fit(self, x, y):
-        print(x.values, y.values)
-        if self.model == "model1":
-            solution = curve_fit(model1, x.values, y.values)
-        elif self.model == "model2":
-            solution = curve_fit(model2, x.values, y.values)
-        else:
-            print("Missing model")
-            return []
+        solution = curve_fit(self.model, x.values, y.values, p0=self.param)
 
         self.param = solution[0]
         self.covar = solution[1]
 
     def __str__(self):
-        return f"Model:{self.model}\nParameters:{self.param}"
+        return f"F_G:{self.model}Parameters:{self.param}"
+
 
 def find_f0(df: DataFrame):
     polynomial_regression = PolynomialRegression(3, bias=True)
@@ -75,7 +56,7 @@ def find_f0(df: DataFrame):
 
 
 def find_fge(df: DataFrame, f0, model):
-    curve_regression = F_geRegression(model)
+    curve_regression = FgRegression(model)
     average_voltages = df.filter(regex="^voltage_\\d+$").mean(axis=1)
     calc_weights = f0.predict(average_voltages.values)
     average_weights = df.filter(regex="^weight_\\d+$").mean(axis=1)
@@ -103,7 +84,7 @@ if __name__ == '__main__':
 
     df = read_measurements("example_measurements.csv")
     f0 = find_f0(df[df["distance"] >= 20])
-    fge = find_fge(df, f0, "model1")
+    fge = find_fge(df, f0, model1)
     fu = find_fu(df, f0, fge)
     print(f0)
     print(fge)
@@ -111,6 +92,6 @@ if __name__ == '__main__':
 
     plt.figure(1)
     plt.scatter(df["voltage_1"], df['weight_1'])
-    plt.plot(np.arange(0,5,0.1), f0.predict(np.arange(0,5,0.1))*fge.predict(np.array([20])), color = "blue")
-    plt.plot(np.arange(0,5,0.1), f0.predict(np.arange(0,5,0.1)), color = "orange")
+    plt.plot(np.arange(0, 5, 0.1), f0.predict(np.arange(0, 5, 0.1)) * fge.predict(np.array([20])), color="blue")
+    plt.plot(np.arange(0, 5, 0.1), f0.predict(np.arange(0, 5, 0.1)), color="orange")
     plt.show()
