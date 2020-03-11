@@ -1,0 +1,10 @@
+4 laveste
+1022 høyeste
+
+1. 70 laveste, spinner når vi går over
+2. 94-95 laveste
+3. 65 laveste
+4. 108 laveste
+
+
+disse ble funnet da vi mappet potmeter til 20-180

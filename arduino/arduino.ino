@@ -7,6 +7,7 @@ const int DIST_ECHO_PIN = 13;
 
 // Electric speed controller pins.
 const int ESC_PINS[] = {A0, A1, A2, A3};
+const int MOTOR_THRESHOLDS[] = {70, 94, 64, 107};
 
 // Load cell pins.
 const int LOAD_SCK_PINS[] = {10, 8, 6, 4};
@@ -64,6 +65,17 @@ void loop() {
     } else{
       s += String(in[i]);
     }
+  }
+
+  for(int i=0; i<4; i++){
+    // Normalizing speed input (0-70) to each rotors appropriate amount.
+    if(speeds[i] == 0){
+      speeds[i] = 20;
+    } else if(speeds[i] > 70){
+      speeds[i] = 180;
+    } else{
+      speeds[i] = map(speeds[i], 0, 70, MOTOR_THRESHOLDS[i], 180);
+    } 
   }
 
   for(int i=0; i<4; i++){

@@ -15,7 +15,8 @@ def sendMsg(s):
 
 ser = serial.Serial("COM3", 9600)
 msg = b"20 20 20 20 "
-i=0
+val = 71
+# ta i mot 0 til 70
 while True:
     returnMsg = sendMsg(msg)  # distance in mm.
     data = returnMsg.strip().split(" ")
@@ -23,5 +24,5 @@ while True:
     loads = data[1:]
     print("dist: " + dist + "\tloads: ", end="")
     print(loads)
-    setSpeeds([i, i, i, i])
-    i += 1
+    setSpeeds([val, val, val, val])
+    #val += 2
