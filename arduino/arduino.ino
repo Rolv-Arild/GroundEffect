@@ -6,7 +6,7 @@ const int DIST_TRIG_PIN = 12;
 const int DIST_ECHO_PIN = 13;
 
 // Electric speed controller pins.
-const int ESC_PIN = A0; 
+const int ESC_PINS[] = {A0, A1, A2, A3};
 
 // Load cell pins.
 const int LOAD_SCK_PINS[] = {10, 8, 6, 4};
@@ -23,8 +23,13 @@ HX711 loadCells[] = {
   HX711(LOAD_DT_PINS[3], LOAD_SCK_PINS[3])
 };
 
+Servo motors[] = {
+  Servo(),
+  Servo(),
+  Servo(),
+  Servo()  
+};
 
-Servo motor;
 
 void setup() {
   Serial.begin(9600);
@@ -33,12 +38,10 @@ void setup() {
   pinMode(DIST_TRIG_PIN, OUTPUT);
   pinMode(DIST_ECHO_PIN, INPUT);
 
-
-  pinMode(ESC_PIN, OUTPUT);
-
-
-  motor.attach(ESC_PIN);
-  Serial.begin(9600);
+  for(int i=0; i<4; i++){
+    pinMode(ESC_PINS[i], OUTPUT);
+    motors[i].attach(ESC_PINS[i]);
+  }
 
   for(int i=0; i<4; i++){
     loadCells[i].tare();
@@ -49,9 +52,23 @@ void setup() {
 }
 
 void loop() {
-  
-  int speed = Serial.parseInt();
-  motor.write(speed);
+  String in = Serial.readString();
+  int speeds[] = {20, 20, 20, 20};
+  int speedIndex = 0;
+  String s = "";
+  for(int i=0; i<in.length(); i++){
+    if(in[i] == ' '){
+      speeds[speedIndex] = s.toInt();
+      s = "";
+      speedIndex++;
+    } else{
+      s += String(in[i]);
+    }
+  }
+
+  for(int i=0; i<4; i++){
+    motors[i].write(speeds[i]);
+  }
 
   // Getting data from the distance sensor.
   delayMicroseconds(2);
@@ -69,6 +86,9 @@ void loop() {
   String data = String(dist) + " ";
   for(int i=0; i<4; i++){
     data += String(loads[i]) + " ";
+  }
+  for(int i=0; i<4; i++){
+    data += String(speeds[i]) + " ";
   }
   Serial.println(data);
 
