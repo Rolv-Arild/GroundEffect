@@ -99,9 +99,6 @@ void loop() {
   for(int i=0; i<4; i++){
     data += String(loads[i]) + " ";
   }
-  for(int i=0; i<4; i++){
-    data += String(speeds[i]) + " ";
-  }
   Serial.println(data);
 
 }

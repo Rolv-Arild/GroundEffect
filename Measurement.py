@@ -19,6 +19,9 @@ class MeasurementWriter:
         values = [str(val) for val in values]
         self.file.write(",".join(values) + "\n")
 
+    def flush(self):
+        self.file.flush()
+
 
 def read_measurements(fname):
     return pd.read_csv(fname)
