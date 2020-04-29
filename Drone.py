@@ -1,61 +1,90 @@
-from pandas import DataFrame, Series
-from sklearn.linear_model import LinearRegression
 import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_squared_error
+from sklearn.neural_network import MLPRegressor
 
-from Measurement import read_measurements
-from PolynomialRegression import PolynomialRegression
+from Regression import CurveRegression, exponential_model
+
+
+def f(x, y, z):
+    return x + y + z
+
+
+def linear(x, a):
+    return a * x
 
 
 class Drone:
-    def f0(self, voltages):
-        avg_voltage = sum(voltages) / len(voltages)
-        return 0.01 * avg_voltage ** 3 + 0.1 * avg_voltage ** 2 + avg_voltage
+    def __init__(self, dist_cutoff, f_0: CurveRegression, f_ge: CurveRegression, f_u: MLPRegressor, n=4):
+        self.n = n
+        self.dist_cutoff = dist_cutoff
+        self.f_0 = f_0
+        self.f_ge = f_ge
+        self.f_u = f_u
 
-    def f_ground_effect(self, dist, voltages):
-        # avg_voltage = sum(voltages) / len(voltages)
-        return self.f0(voltages)
+    def fit(self, df: pd.DataFrame):
+        distances = df["distance"]
+        voltages = df.filter(regex="^voltage_\\d+$")
+        weights = df.filter(regex="^weight_\\d+$")
+        forces = self.get_forces(weights)
 
-    def f_unknown(self, dist, voltages):
-        pass
+        off_ground = distances > self.dist_cutoff
 
+        self.f_0.fit(voltages[off_ground].values.reshape((-1,)), forces[off_ground].values.reshape((-1,)))
+        base_pred = self.f_0.predict(voltages.values.reshape(-1, )).reshape((-1, self.n))
+        ground_factor = (forces.values / base_pred).mean(axis=1)  # F = F0 * Fge -> Fge = F / F0
+        valid = np.isfinite(ground_factor)  # Filter out invalid values (nan, inf, -inf)
+        ground_factor = ground_factor[valid]
+        dists = distances.values[valid]
 
-def find_f0(df: DataFrame):
-    polynomial_regression = PolynomialRegression(3, bias=True)
-    average_voltages = df.filter(regex="^voltage_\\d+$").mean(axis=1)
-    average_weights = df.filter(regex="^weight_\\d+$").mean(axis=1)
-    polynomial_regression.fit(average_voltages.values, average_weights.values)
-    return polynomial_regression
+        self.f_ge.fit(dists, ground_factor)
+        ge = self.f_ge.predict(distances.values).reshape((-1, 1))
 
+        unknown = forces.values - base_pred * ge  # F = F0 * Fge + Fu -> Fu = F - F0 * Fge
 
-def find_fge(df: DataFrame, f0):
-    polynomial_regression = PolynomialRegression(3, bias=True)
-    average_voltages = df.filter(regex="^voltage_\\d+$").mean(axis=1)
-    calc_weights = f0.predict(average_voltages.values)
-    average_weights = df.filter(regex="^weight_\\d+$").mean(axis=1)
-    error_weights = average_weights / calc_weights
-    distances = df["distance"]
-    polynomial_regression.fit(distances.values, error_weights.values)
-    return polynomial_regression
+        self.f_u.fit(pd.concat((voltages, distances), axis=1).values, unknown)
 
+    def score_predict(self, df):
+        distances = df["distance"]
+        voltages = df.filter(regex="^voltage_\\d+$")
+        weights = df.filter(regex="^weight_\\d+$")
+        forces = self.get_forces(weights)
 
-def find_fu(df: DataFrame, f0, fge):
-    df = df.drop(["time"], axis=1)
-    lr = LinearRegression()  # Most basic model
-    voltages = df.filter(regex="^voltage_\\d+$")
-    average_voltages = voltages.mean(axis=1)
-    weights = df.filter(regex="^weight_\\d+$")
-    distances = df["distance"]
-    pred_weights = f0.predict(average_voltages.values) * fge.predict(distances.values)
-    error_weights = weights.values - np.repeat(np.reshape(pred_weights, (-1, 1)), 4, axis=1)
-    lr.fit(df.values, error_weights)
-    return lr
+        scores = []
+        base_pred = self.f_0.predict(voltages.values.reshape(-1, )).reshape((-1, self.n))
+        res = base_pred
+        scores.append(mean_squared_error(forces.values, res))
+        ge = self.f_ge.predict(distances.values).reshape((-1, 1))
+        res *= ge
+        scores.append(mean_squared_error(forces.values, res))
+        unk = self.f_u.predict(pd.concat((voltages, distances), axis=1).values)
+        res += unk
+        scores.append(mean_squared_error(forces.values, res))
+
+        return res, scores
+
+    def predict(self, df):
+        distances = df["distance"]
+        voltages = df.filter(regex="^voltage_\\d+$")
+
+        base_pred = self.f_0.predict(voltages.values.reshape(-1, )).reshape((-1, self.n))
+        ge = self.f_ge.predict(distances.values).reshape((-1, 1))
+        unk = self.f_u.predict(pd.concat((voltages, distances), axis=1).values)
+
+        return base_pred * ge + unk
+
+    def get_forces(self, df, a=0.2, b=0.2):
+        forces = pd.DataFrame(columns=[f"force_{i}" for i in range(self.n)])
+        for i in range(self.n):
+            opposite = (i + self.n // 2) % self.n
+            forces[f"force_{i}"] = (-df[f"weight_{opposite}"] * a + df[f"weight_{i}"] * (a + 2 * b)) / (2 * b)
+
+        return forces
 
 
 if __name__ == '__main__':
-    df = read_measurements("example_measurements.csv")
-    f0 = find_f0(df[df["distance"] >= 20])
-    fge = find_fge(df, f0)
-    fu = find_fu(df, f0, fge)
-    print(f0)
-    print(fge)
-    print(fu)
+    d = Drone(25, CurveRegression(linear), CurveRegression(exponential_model),
+              MLPRegressor((64, 64, 64, 64, 64), max_iter=1000))
+    data = pd.read_csv("write_test.csv")
+    d.fit(data[:8000])
+    pred, scores = d.score_predict(data[8000:])

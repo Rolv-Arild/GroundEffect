@@ -1,2 +1,4 @@
 .idea/
 *.pyc
+/dji-data/
+

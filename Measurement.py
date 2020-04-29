@@ -14,7 +14,7 @@ class MeasurementWriter:
 
     def write(self, dist, voltages, weights):
         if not len(voltages) == len(weights) == self.n_measurements:
-            raise ValueError
+            raise ValueError  #
         values = [time.time(), dist] + voltages + weights
         values = [str(val) for val in values]
         self.file.write(",".join(values) + "\n")
